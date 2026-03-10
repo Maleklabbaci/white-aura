@@ -3,8 +3,8 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  originalPrice?: number;   // ← ancien prix avant promo
-  promoLabel?: string;       // ← badge promo ex: "-30%", "Soldes"
+  originalPrice?: number;
+  promoLabel?: string;
   imageUrl: string;
   images?: string[];
   category: string;
