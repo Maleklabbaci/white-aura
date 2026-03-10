@@ -8,18 +8,35 @@ export default function Hero() {
   const { language } = useAppContext();
   const t = useTranslation(language);
   const sectionRef = useRef<HTMLElement>(null);
-  const [transform, setTransform] = useState('translate(0px, 0px) scale(1.1)');
+  const [imgStyle, setImgStyle] = useState<React.CSSProperties>({
+    transform: 'translate(0px, 0px) scale(1.03)',
+    transition: 'transform 0.6s ease-out',
+  });
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!sectionRef.current) return;
     const rect = sectionRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 30;
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 20;
-    setTransform(`translate(${x}px, ${y}px) scale(1.1)`);
+
+    // -1 à 1 depuis le centre
+    const xRatio = (e.clientX - rect.left) / rect.width - 0.5;
+    const yRatio = (e.clientY - rect.top) / rect.height - 0.5;
+
+    // Mouvement TRÈS subtil : max 6px horizontal, 4px vertical
+    const x = xRatio * 6;
+    const y = yRatio * 4;
+
+    setImgStyle({
+      transform: `translate(${x}px, ${y}px) scale(1.03)`,
+      transition: 'transform 0.6s ease-out',
+      willChange: 'transform',
+    });
   };
 
   const handleMouseLeave = () => {
-    setTransform('translate(0px, 0px) scale(1.1)');
+    setImgStyle({
+      transform: 'translate(0px, 0px) scale(1.03)',
+      transition: 'transform 0.8s ease-out',
+    });
   };
 
   return (
@@ -29,18 +46,15 @@ export default function Hero() {
       onMouseLeave={handleMouseLeave}
       className="relative min-h-[100dvh] w-full bg-gray-900 flex flex-col justify-center md:justify-end overflow-hidden pb-8 pt-32"
     >
-      {/* Background Image — SUIT LA SOURIS */}
+      {/* Background Image — Mouvement subtil des yeux */}
       <div className="absolute inset-0 w-full h-full overflow-hidden">
         <img
           src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=2000&auto=format&fit=crop"
           alt="Cosmetics model with glowing skin"
           className="w-full h-full object-cover object-center opacity-90"
           referrerPolicy="no-referrer"
-          style={{
-            transform: transform,
-            transition: 'transform 0.3s ease-out',
-            willChange: 'transform',
-          }}
+          draggable={false}
+          style={imgStyle}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40"></div>
       </div>
