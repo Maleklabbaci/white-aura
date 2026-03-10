@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
@@ -7,29 +7,52 @@ import { useTranslation } from '../utils/translations';
 export default function Hero() {
   const { language } = useAppContext();
   const t = useTranslation(language);
+  const sectionRef = useRef<HTMLElement>(null);
+  const [transform, setTransform] = useState('translate(0px, 0px) scale(1.1)');
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!sectionRef.current) return;
+    const rect = sectionRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 30;
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 20;
+    setTransform(`translate(${x}px, ${y}px) scale(1.1)`);
+  };
+
+  const handleMouseLeave = () => {
+    setTransform('translate(0px, 0px) scale(1.1)');
+  };
 
   return (
-    <section className="relative min-h-[100dvh] w-full bg-gray-900 flex flex-col justify-center md:justify-end overflow-hidden pb-8 pt-32">
-      {/* Background Image */}
-      <div className="absolute inset-0 w-full h-full">
-        <img 
-          src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=2000&auto=format&fit=crop" 
-          alt="Cosmetics model with glowing skin" 
+    <section
+      ref={sectionRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="relative min-h-[100dvh] w-full bg-gray-900 flex flex-col justify-center md:justify-end overflow-hidden pb-8 pt-32"
+    >
+      {/* Background Image — SUIT LA SOURIS */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=2000&auto=format&fit=crop"
+          alt="Cosmetics model with glowing skin"
           className="w-full h-full object-cover object-center opacity-90"
           referrerPolicy="no-referrer"
+          style={{
+            transform: transform,
+            transition: 'transform 0.3s ease-out',
+            willChange: 'transform',
+          }}
         />
-        {/* Subtle gradient to ensure text readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40"></div>
       </div>
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-8 md:gap-12">
-        
-        {/* Glassmorphism Card (Left) */}
+
+        {/* Glassmorphism Card */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
           className="bg-white/10 backdrop-blur-md border border-white/20 p-6 md:p-10 rounded-3xl max-w-md w-full shadow-2xl"
         >
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mb-6">
@@ -41,7 +64,7 @@ export default function Hero() {
           <p className="text-white/80 text-sm leading-relaxed mb-8 font-light">
             {t('heroDesc')}
           </p>
-          <button 
+          <button
             onClick={() => document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' })}
             className="flex items-center gap-4 text-white text-xs font-bold uppercase tracking-widest hover:text-gold-400 transition-colors group"
           >
@@ -52,8 +75,8 @@ export default function Hero() {
           </button>
         </motion.div>
 
-        {/* Big Text (Right) */}
-        <motion.div 
+        {/* Big Text */}
+        <motion.div
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
@@ -64,9 +87,8 @@ export default function Hero() {
             <span className="text-gold-400 italic font-light">{t('heroTitle2')}</span> {t('heroTitle3')}
           </h1>
         </motion.div>
-
       </div>
-      
+
       {/* Bottom Bar */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 md:px-12 mt-8 md:mt-12 flex justify-between items-center border-t border-white/20 pt-4 md:pt-6">
         <p className="text-white/80 text-sm font-medium tracking-wide">{t('expertsSecrets')}</p>
