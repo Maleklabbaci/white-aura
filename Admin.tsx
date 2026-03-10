@@ -2,55 +2,38 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { motion } from 'motion/react';
 import {
-  Package,
-  Plus,
-  LogOut,
-  CheckCircle2,
-  Image as ImageIcon,
-  Trash2,
-  Tag,
+  Package, Plus, LogOut, CheckCircle2, Image as ImageIcon,
+  Trash2, Tag, Pencil, X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
-const compressImage = (
-  file: File,
-  maxWidth = 800,
-  quality = 0.7
-): Promise<Blob> => {
+const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      let width = img.width;
-      let height = img.height;
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
+      let w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
       if (!ctx) { URL.revokeObjectURL(url); reject(new Error('Canvas error')); return; }
-      ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => { URL.revokeObjectURL(url); blob ? resolve(blob) : reject(new Error('Compression échouée')); },
-        'image/jpeg', quality
-      );
+      ctx.drawImage(img, 0, 0, w, h);
+      c.toBlob((b) => { URL.revokeObjectURL(url); b ? resolve(b) : reject(new Error('Fail')); }, 'image/jpeg', quality);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Erreur image')); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image error')); };
     img.src = url;
   });
 };
 
 const uploadToSupabase = async (file: File): Promise<string> => {
-  const compressedBlob = await compressImage(file, 800, 0.7);
-  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.jpg`;
-  const { data, error } = await supabase.storage.from('products').upload(fileName, compressedBlob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: true });
+  const blob = await compressImage(file, 800, 0.7);
+  const name = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.jpg`;
+  const { data, error } = await supabase.storage.from('products').upload(name, blob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: true });
   if (error) throw new Error(error.message);
-  const { data: urlData } = supabase.storage.from('products').getPublicUrl(data.path);
-  return urlData.publicUrl;
+  const { data: u } = supabase.storage.from('products').getPublicUrl(data.path);
+  return u.publicUrl;
 };
 
 export default function Admin() {
@@ -60,6 +43,8 @@ export default function Admin() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products');
 
+  // Form
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [price, setPrice] = useState('');
@@ -92,36 +77,89 @@ export default function Admin() {
     setImageLoading(true);
     setImagePreview(URL.createObjectURL(file));
     try {
-      const publicUrl = await uploadToSupabase(file);
-      setImageUrl(publicUrl);
+      const url = await uploadToSupabase(file);
+      setImageUrl(url);
       window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploadée ✅' }));
-    } catch (error: any) {
+    } catch (err: any) {
       setImagePreview('');
-      alert('❌ ERREUR UPLOAD:\n\n' + (error?.message || JSON.stringify(error)));
+      alert('❌ ERREUR: ' + (err?.message || ''));
     } finally {
       setImageLoading(false);
     }
   };
 
-  const handleAddProduct = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setEditingId(null); setName(''); setCategory(''); setPrice('');
+    setStock('10'); setDescription(''); setImageUrl(''); setImagePreview('');
+    setIsNew(false); setOriginalPrice(''); setPromoLabel('');
+  };
+
+  const handleEditProduct = (product: any) => {
+    setEditingId(product.id);
+    setName(product.name || '');
+    setCategory(product.category || '');
+    setPrice(String(product.price || ''));
+    setStock(String(product.stock || '0'));
+    setDescription(product.description || '');
+    setImageUrl(product.imageUrl || '');
+    setImagePreview(product.imageUrl || '');
+    setIsNew(product.isNew || false);
+    setOriginalPrice(product.originalPrice ? String(product.originalPrice) : '');
+    setPromoLabel(product.promoLabel || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!imageUrl) {
       window.dispatchEvent(new CustomEvent('show-toast', { detail: "Uploadez d'abord une image" }));
       return;
     }
-    const newProduct: any = {
-      id: Date.now().toString(), name, category,
-      price: Number(price), stock: Number(stock),
-      description, imageUrl, images: [imageUrl], isNew,
-    };
-    if (originalPrice && Number(originalPrice) > 0) newProduct.originalPrice = Number(originalPrice);
-    if (promoLabel.trim()) newProduct.promoLabel = promoLabel.trim();
 
-    addProduct(newProduct);
-    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Produit ajouté ✅' }));
-    setName(''); setCategory(''); setPrice(''); setStock('10');
-    setDescription(''); setImageUrl(''); setImagePreview('');
-    setIsNew(false); setOriginalPrice(''); setPromoLabel('');
+    const productData: any = {
+      name, category,
+      price: Number(price),
+      stock: Number(stock),
+      description, imageUrl,
+      images: [imageUrl],
+      isNew,
+    };
+    if (originalPrice && Number(originalPrice) > 0) productData.originalPrice = Number(originalPrice);
+    if (promoLabel.trim()) productData.promoLabel = promoLabel.trim();
+
+    if (editingId) {
+      // ── MODIFIER ──
+      try {
+        const { error } = await supabase.from('products').update({
+          name: productData.name,
+          category: productData.category,
+          price: productData.price,
+          stock: productData.stock,
+          description: productData.description,
+          image_url: productData.imageUrl,
+          images: productData.images,
+          is_new: productData.isNew,
+          original_price: productData.originalPrice || null,
+          promo_label: productData.promoLabel || null,
+        }).eq('id', editingId);
+
+        if (error) throw error;
+
+        // Mettre à jour le state local
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Produit modifié ✅' }));
+        // Recharger la page pour voir les changements
+        window.location.reload();
+      } catch (err: any) {
+        alert('❌ Erreur modification: ' + (err?.message || ''));
+      }
+    } else {
+      // ── AJOUTER ──
+      productData.id = Date.now().toString();
+      addProduct(productData);
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Produit ajouté ✅' }));
+    }
+
+    resetForm();
   };
 
   if (!isAuthenticated) {
@@ -130,12 +168,12 @@ export default function Admin() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-display font-bold text-gray-900 uppercase tracking-widest mb-2">Accès Admin</h1>
-            <p className="text-sm text-gray-500">Entrez le mot de passe pour accéder au tableau de bord.</p>
+            <p className="text-sm text-gray-500">Entrez le mot de passe</p>
           </div>
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400" required />
             <button type="submit" className="w-full bg-gray-900 text-white py-4 mt-2 hover:bg-gold-400 hover:text-gray-900 transition-colors font-bold text-sm uppercase tracking-widest">Se connecter</button>
-            <button type="button" onClick={() => navigate('/')} className="w-full bg-transparent text-gray-500 py-2 hover:text-gray-900 text-xs uppercase tracking-widest">Retour au site</button>
+            <button type="button" onClick={() => navigate('/')} className="w-full text-gray-500 py-2 hover:text-gray-900 text-xs uppercase tracking-widest">Retour au site</button>
           </form>
         </motion.div>
       </div>
@@ -146,6 +184,7 @@ export default function Admin() {
     <div className="min-h-screen bg-gray-50 p-6 md:p-12">
       <div className="max-w-6xl mx-auto">
 
+        {/* Header */}
         <div className="flex justify-between items-center mb-12">
           <div>
             <h1 className="text-3xl font-display font-bold text-gray-900 uppercase tracking-widest">Tableau de bord</h1>
@@ -157,6 +196,7 @@ export default function Admin() {
           </div>
         </div>
 
+        {/* Tabs */}
         <div className="flex gap-4 mb-8 border-b border-gray-200">
           <button onClick={() => setActiveTab('products')} className={`pb-4 px-2 text-sm font-bold uppercase tracking-widest border-b-2 ${activeTab === 'products' ? 'border-gold-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-900'}`}>Produits</button>
           <button onClick={() => setActiveTab('orders')} className={`pb-4 px-2 text-sm font-bold uppercase tracking-widest border-b-2 flex items-center gap-2 ${activeTab === 'orders' ? 'border-gold-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-900'}`}>
@@ -170,16 +210,32 @@ export default function Admin() {
         {activeTab === 'products' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-            {/* ════════════════════════════════════════════════════ */}
-            {/* FORMULAIRE AJOUTER UN PRODUIT                      */}
-            {/* ════════════════════════════════════════════════════ */}
+            {/* ═══════════════════════════════════════════════ */}
+            {/* FORMULAIRE AJOUTER / MODIFIER                  */}
+            {/* ═══════════════════════════════════════════════ */}
             <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-3 mb-8 border-b border-gray-100 pb-4">
-                <div className="w-10 h-10 bg-gold-400 rounded-full flex items-center justify-center text-gray-900"><Plus size={20} /></div>
-                <h2 className="text-xl font-display font-bold text-gray-900 uppercase tracking-widest">Ajouter un produit</h2>
+
+              {/* Titre du formulaire */}
+              <div className="flex items-center justify-between mb-8 border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${editingId ? 'bg-blue-500 text-white' : 'bg-gold-400 text-gray-900'}`}>
+                    {editingId ? <Pencil size={20} /> : <Plus size={20} />}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-display font-bold text-gray-900 uppercase tracking-widest">
+                      {editingId ? 'Modifier le produit' : 'Ajouter un produit'}
+                    </h2>
+                    {editingId && <p className="text-xs text-blue-500">Mode édition — ID: {editingId}</p>}
+                  </div>
+                </div>
+                {editingId && (
+                  <button onClick={resetForm} className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-700 uppercase tracking-widest">
+                    <X size={14} /> Annuler
+                  </button>
+                )}
               </div>
 
-              <form onSubmit={handleAddProduct} className="flex flex-col gap-6">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
                 {/* Nom + Catégorie */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -200,41 +256,47 @@ export default function Admin() {
                     <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} required min="0" className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400" placeholder="Ex: 4500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">Stock initial</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">Stock</label>
                     <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} required min="0" className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400" placeholder="Ex: 10" />
                   </div>
                 </div>
 
-                {/* ══════════════════════════════════════════════ */}
-                {/* SECTION PROMO - FOND ROUGE                    */}
-                {/* ══════════════════════════════════════════════ */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-red-50 border border-red-200 rounded-xl">
-                  <div>
-                    <label className="block text-xs font-bold text-red-600 uppercase tracking-widest mb-2">
-                      💰 Ancien prix avant promo (optionnel)
-                    </label>
-                    <input
-                      type="number"
-                      value={originalPrice}
-                      onChange={(e) => setOriginalPrice(e.target.value)}
-                      min="0"
-                      className="w-full border border-red-200 px-4 py-3 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-white rounded"
-                      placeholder="Ex: 6500 (vide = pas de promo)"
-                    />
-                    <p className="text-[10px] text-red-400 mt-1">Laissez vide si pas de promotion</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-red-600 uppercase tracking-widest mb-2">
-                      🏷️ Badge promo (optionnel)
-                    </label>
-                    <input
-                      type="text"
-                      value={promoLabel}
-                      onChange={(e) => setPromoLabel(e.target.value)}
-                      className="w-full border border-red-200 px-4 py-3 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-white rounded"
-                      placeholder="Ex: -30%, Soldes, Promo Été"
-                    />
-                    <p className="text-[10px] text-red-400 mt-1">S'affichera en badge rouge sur le produit</p>
+                {/* ═══════════════════════════════════════════ */}
+                {/* PROMO — FOND ROUGE BIEN VISIBLE            */}
+                {/* ═══════════════════════════════════════════ */}
+                <div className="p-5 bg-red-50 border-2 border-red-200 rounded-xl">
+                  <h3 className="text-sm font-bold text-red-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Tag size={16} />
+                    Section Promotion (optionnel)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-xs font-bold text-red-600 uppercase tracking-widest mb-2">
+                        💰 Ancien prix avant promo
+                      </label>
+                      <input
+                        type="number"
+                        value={originalPrice}
+                        onChange={(e) => setOriginalPrice(e.target.value)}
+                        min="0"
+                        className="w-full border border-red-200 px-4 py-3 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-white rounded"
+                        placeholder="Ex: 6500 (vide = pas de promo)"
+                      />
+                      <p className="text-[10px] text-red-400 mt-1">Laissez vide si pas de promotion</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-red-600 uppercase tracking-widest mb-2">
+                        🏷️ Badge promo
+                      </label>
+                      <input
+                        type="text"
+                        value={promoLabel}
+                        onChange={(e) => setPromoLabel(e.target.value)}
+                        className="w-full border border-red-200 px-4 py-3 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-white rounded"
+                        placeholder="Ex: -30%, Soldes, Promo Été"
+                      />
+                      <p className="text-[10px] text-red-400 mt-1">Badge rouge affiché sur le produit</p>
+                    </div>
                   </div>
                 </div>
 
@@ -254,9 +316,9 @@ export default function Admin() {
                     )}
                     <label className={`flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 px-4 py-3 text-sm hover:border-gold-400 hover:bg-gold-50 transition-colors ${imageLoading ? 'cursor-wait opacity-60' : 'cursor-pointer'}`}>
                       {imageLoading ? (
-                        <><svg className="animate-spin h-5 w-5 text-gold-500" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg><span className="text-gray-600 font-medium">Compression & upload...</span></>
+                        <><svg className="animate-spin h-5 w-5 text-gold-500" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg><span className="text-gray-600 font-medium">Upload en cours...</span></>
                       ) : imageUrl ? (
-                        <><CheckCircle2 size={18} className="text-green-500" /><span className="text-green-600 font-medium">Image uploadée — Cliquer pour changer</span></>
+                        <><CheckCircle2 size={18} className="text-green-500" /><span className="text-green-600 font-medium">Image OK — Cliquer pour changer</span></>
                       ) : (
                         <><ImageIcon size={18} className="text-gray-400" /><span className="text-gray-600 font-medium">Télécharger une photo</span></>
                       )}
@@ -267,34 +329,34 @@ export default function Admin() {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">Description détaillée</label>
-                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} required rows={4} className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400" placeholder="Décrivez les bienfaits du produit..."></textarea>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">Description</label>
+                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} required rows={4} className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400" placeholder="Décrivez le produit..."></textarea>
                 </div>
 
                 {/* Nouveau */}
                 <div className="flex items-center gap-3">
                   <input type="checkbox" id="isNew" checked={isNew} onChange={(e) => setIsNew(e.target.checked)} className="w-5 h-5 accent-gold-500" />
-                  <label htmlFor="isNew" className="text-sm font-medium text-gray-700 cursor-pointer">Marquer comme "Nouveau" produit</label>
+                  <label htmlFor="isNew" className="text-sm font-medium text-gray-700 cursor-pointer">Marquer comme "Nouveau"</label>
                 </div>
 
                 {/* Submit */}
-                <button type="submit" disabled={imageLoading || !imageUrl} className={`w-full md:w-auto self-start px-8 py-4 mt-4 font-bold text-sm uppercase tracking-widest flex items-center gap-2 transition-colors ${imageLoading || !imageUrl ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-gold-400 hover:text-gray-900'}`}>
-                  <CheckCircle2 size={18} />Publier le produit
+                <button type="submit" disabled={imageLoading || !imageUrl} className={`w-full md:w-auto self-start px-8 py-4 mt-2 font-bold text-sm uppercase tracking-widest flex items-center gap-2 transition-colors ${imageLoading || !imageUrl ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : editingId ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-900 text-white hover:bg-gold-400 hover:text-gray-900'}`}>
+                  {editingId ? <><Pencil size={18} /> Enregistrer les modifications</> : <><CheckCircle2 size={18} /> Publier le produit</>}
                 </button>
               </form>
             </div>
 
-            {/* ════════════════════════════════════════════════════ */}
-            {/* INVENTAIRE                                          */}
-            {/* ════════════════════════════════════════════════════ */}
+            {/* ═══════════════════════════════════════════════ */}
+            {/* INVENTAIRE                                      */}
+            {/* ═══════════════════════════════════════════════ */}
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 h-fit">
               <div className="flex items-center gap-3 mb-8 border-b border-gray-100 pb-4">
                 <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-900"><Package size={20} /></div>
                 <h2 className="text-xl font-display font-bold text-gray-900 uppercase tracking-widest">Inventaire ({products.length})</h2>
               </div>
-              <div className="flex flex-col gap-4 max-h-[500px] overflow-y-auto pr-2">
+              <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2">
                 {products.map((product) => (
-                  <div key={product.id} className="flex gap-4 items-center p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div key={product.id} className={`flex gap-4 items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors ${editingId === product.id ? 'border-blue-400 bg-blue-50' : 'border-gray-100'}`}>
                     <img src={product.imageUrl} alt={product.name} className="w-12 h-12 object-cover rounded-md" referrerPolicy="no-referrer" loading="lazy" />
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-bold text-gray-900 truncate">{product.name}</h4>
@@ -314,12 +376,17 @@ export default function Admin() {
                           <p className="text-sm font-bold text-gold-600">{product.price.toLocaleString('fr-DZ')} DZD</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <div className="flex items-center border border-gray-200 rounded overflow-hidden">
-                          <span className="text-[10px] uppercase tracking-widest font-bold px-2 text-gray-500 bg-gray-50 border-r border-gray-200">Stock</span>
-                          <input type="number" value={product.stock} onChange={(e) => updateProductStock(product.id, Number(e.target.value))} className="w-12 text-xs text-center py-1 focus:outline-none" min="0" />
+                          <span className="text-[10px] uppercase tracking-widest font-bold px-1.5 text-gray-500 bg-gray-50 border-r border-gray-200">S</span>
+                          <input type="number" value={product.stock} onChange={(e) => updateProductStock(product.id, Number(e.target.value))} className="w-10 text-xs text-center py-1 focus:outline-none" min="0" />
                         </div>
-                        <button onClick={() => { if (window.confirm('Supprimer ce produit ?')) deleteProduct(product.id); }} className="text-gray-400 hover:text-red-500 transition-colors p-1"><Trash2 size={14} /></button>
+                        <button onClick={() => handleEditProduct(product)} className="text-blue-400 hover:text-blue-600 transition-colors p-1" title="Modifier">
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => { if (window.confirm('Supprimer ?')) deleteProduct(product.id); }} className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Supprimer">
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -328,9 +395,9 @@ export default function Admin() {
             </div>
           </div>
         ) : (
-          /* ═══════════════════════════════════════════════════════ */
-          /* COMMANDES                                              */
-          /* ═══════════════════════════════════════════════════════ */
+          /* ═══════════════════════════════════════════════════ */
+          /* COMMANDES                                          */
+          /* ═══════════════════════════════════════════════════ */
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100"><h2 className="text-xl font-display font-bold text-gray-900 uppercase tracking-widest">Suivi des commandes</h2></div>
             <div className="overflow-x-auto">
@@ -347,7 +414,7 @@ export default function Admin() {
                 </thead>
                 <tbody>
                   {orders.length === 0 ? (
-                    <tr><td colSpan={6} className="p-8 text-center text-gray-500">Aucune commande pour le moment.</td></tr>
+                    <tr><td colSpan={6} className="p-8 text-center text-gray-500">Aucune commande</td></tr>
                   ) : (
                     orders.map((order) => (
                       <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50/50">
