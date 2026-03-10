@@ -20,7 +20,7 @@ const compressImage = (
   quality = 0.7
 ): Promise<Blob> => {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = new window.Image();
     const url = URL.createObjectURL(file);
 
     img.onload = () => {
@@ -38,6 +38,7 @@ const compressImage = (
 
       const ctx = canvas.getContext('2d');
       if (!ctx) {
+        URL.revokeObjectURL(url);
         reject(new Error('Canvas context not available'));
         return;
       }
@@ -72,24 +73,29 @@ const uploadToSupabase = async (file: File): Promise<string> => {
   // Compresser l'image
   const compressedBlob = await compressImage(file, 800, 0.7);
 
-  // Générer un nom unique
+  // Nom unique simple (PAS de sous-dossier)
   const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.jpg`;
-  const filePath = `products/${fileName}`;
 
-  // Upload vers Supabase Storage
-  const { error } = await supabase.storage
+  // Upload vers Supabase Storage — bucket "products", fichier à la racine
+  const { data, error } = await supabase.storage
     .from('products')
-    .upload(filePath, compressedBlob, {
+    .upload(fileName, compressedBlob, {
       contentType: 'image/jpeg',
       cacheControl: '3600',
+      upsert: true,
     });
 
-  if (error) throw error;
+  if (error) {
+    console.error('Supabase upload error:', error);
+    throw new Error(error.message);
+  }
 
   // Récupérer l'URL publique
-  const { data } = supabase.storage.from('products').getPublicUrl(filePath);
+  const { data: urlData } = supabase.storage
+    .from('products')
+    .getPublicUrl(data.path);
 
-  return data.publicUrl;
+  return urlData.publicUrl;
 };
 
 // ── Composant Admin ──────────────────────────────────────────────
@@ -161,14 +167,21 @@ export default function Admin() {
       const publicUrl = await uploadToSupabase(file);
       setImageUrl(publicUrl);
       window.dispatchEvent(
-        new CustomEvent('show-toast', { detail: 'Image uploadée avec succès' })
+        new CustomEvent('show-toast', {
+          detail: 'Image uploadée avec succès ✅',
+        })
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error);
       setImagePreview('');
+
+      // ⚠️ AFFICHE L'ERREUR EXACTE pour débugger
+      const msg = error?.message || JSON.stringify(error);
+      alert('❌ ERREUR UPLOAD:\n\n' + msg);
+
       window.dispatchEvent(
         new CustomEvent('show-toast', {
-          detail: "Erreur lors de l'upload de l'image",
+          detail: "Erreur lors de l'upload: " + msg,
         })
       );
     } finally {
@@ -325,7 +338,6 @@ export default function Admin() {
           </button>
         </div>
 
-        {/* ── PRODUCTS TAB ────────────────────────────────────── */}
         {activeTab === 'products' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Add Product Form */}
@@ -400,7 +412,7 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* ── Image Upload Zone ─────────────────────────── */}
+                {/* Image Upload */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">
                     Image du produit
@@ -546,7 +558,7 @@ export default function Admin() {
               </form>
             </div>
 
-            {/* Stats / Inventory */}
+            {/* Inventory */}
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 h-fit">
               <div className="flex items-center gap-3 mb-8 border-b border-gray-100 pb-4">
                 <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-900">
@@ -622,7 +634,7 @@ export default function Admin() {
             </div>
           </div>
         ) : (
-          /* ── ORDERS TAB ───────────────────────────────────────── */
+          /* Orders Tab */
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
               <h2 className="text-xl font-display font-bold text-gray-900 uppercase tracking-widest">
