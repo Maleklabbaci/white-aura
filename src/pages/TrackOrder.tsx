@@ -2,45 +2,111 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { motion } from 'motion/react';
-import { Search, Package, Truck, CheckCircle2, Clock, ArrowLeft } from 'lucide-react';
+import {
+  Search,
+  Package,
+  Truck,
+  CheckCircle2,
+  Clock,
+  ArrowLeft,
+  Phone,
+  MapPin,
+  ShoppingBag,
+  CalendarDays,
+  CircleDot,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TrackOrder() {
   const { orders } = useAppContext();
   const navigate = useNavigate();
-  const [searchId, setSearchId] = useState('');
-  const [searchPhone, setSearchPhone] = useState('');
-  const [foundOrder, setFoundOrder] = useState<any>(null);
+  const [phone, setPhone] = useState('');
+  const [foundOrders, setFoundOrders] = useState<any[]>([]);
   const [searched, setSearched] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setSearched(true);
 
-    const order = orders.find(
-      (o) =>
-        o.id === searchId.trim() ||
-        o.customer.phone === searchPhone.trim()
-    );
+    // Nettoyer le numéro (enlever espaces, tirets, +213 etc.)
+    const cleanPhone = phone.trim().replace(/[\s\-\.]/g, '');
 
-    setFoundOrder(order || null);
+    const results = orders.filter((o) => {
+      const orderPhone = o.customer.phone.replace(/[\s\-\.]/g, '');
+      return (
+        orderPhone === cleanPhone ||
+        orderPhone.endsWith(cleanPhone) ||
+        cleanPhone.endsWith(orderPhone)
+      );
+    });
+
+    // Trier par date (plus récent en premier)
+    setFoundOrders(results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
   };
 
-  const getStepStatus = (orderStatus: string, step: string) => {
-    const steps = ['En attente', 'Expédiée', 'Livrée'];
-    const orderIndex = steps.indexOf(orderStatus);
-    const stepIndex = steps.indexOf(step);
+  const steps = [
+    {
+      key: 'En attente',
+      label: 'Commande confirmée',
+      icon: Clock,
+      description: 'Votre commande a été reçue avec succès. Notre équipe la prépare avec soin.',
+      detail: 'Délai estimé : préparation sous 24h.',
+      color: 'yellow',
+    },
+    {
+      key: 'Expédiée',
+      label: 'En cours de livraison',
+      icon: Truck,
+      description: 'Votre colis a quitté notre entrepôt et est en route vers votre adresse.',
+      detail: 'Délai estimé : livraison sous 2 à 5 jours ouvrables selon votre wilaya.',
+      color: 'blue',
+    },
+    {
+      key: 'Livrée',
+      label: 'Livrée avec succès',
+      icon: CheckCircle2,
+      description: 'Votre commande a été livrée ! Merci pour votre confiance.',
+      detail: 'Si vous avez un souci, contactez-nous dans les 48h.',
+      color: 'green',
+    },
+  ];
 
+  const getStepStatus = (orderStatus: string, stepKey: string) => {
+    const order = ['En attente', 'Expédiée', 'Livrée'];
+    const orderIndex = order.indexOf(orderStatus);
+    const stepIndex = order.indexOf(stepKey);
     if (stepIndex < orderIndex) return 'completed';
     if (stepIndex === orderIndex) return 'current';
     return 'upcoming';
   };
 
-  const steps = [
-    { key: 'En attente', label: 'Commande confirmée', icon: Clock, description: 'Votre commande a été reçue et est en cours de préparation.' },
-    { key: 'Expédiée', label: 'En cours de livraison', icon: Truck, description: 'Votre colis est en route vers votre adresse.' },
-    { key: 'Livrée', label: 'Livrée', icon: CheckCircle2, description: 'Votre commande a été livrée avec succès !' },
-  ];
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'En attente':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-full">
+            <Clock size={12} />
+            En préparation
+          </span>
+        );
+      case 'Expédiée':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full">
+            <Truck size={12} />
+            En livraison
+          </span>
+        );
+      case 'Livrée':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest bg-green-100 text-green-700 px-3 py-1.5 rounded-full">
+            <CheckCircle2 size={12} />
+            Livrée
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -59,53 +125,44 @@ export default function TrackOrder() {
             <h1 className="text-3xl font-display font-bold text-gray-900 uppercase tracking-widest mb-2">
               Suivre ma commande
             </h1>
-            <p className="text-sm text-gray-500">
-              Entrez votre numéro de commande ou votre numéro de téléphone
+            <p className="text-sm text-gray-500 max-w-md mx-auto">
+              Entrez le numéro de téléphone utilisé lors de votre commande pour voir l'état de votre livraison en temps réel.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Search Form */}
       <div className="max-w-3xl mx-auto px-6 py-8">
+        {/* Search Form */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100"
         >
           <form onSubmit={handleSearch} className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">
-                  N° de commande
-                </label>
-                <input
-                  type="text"
-                  value={searchId}
-                  onChange={(e) => setSearchId(e.target.value)}
-                  placeholder="Ex: 1719856400000"
-                  className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">
-                  Ou N° de téléphone
-                </label>
-                <input
-                  type="text"
-                  value={searchPhone}
-                  onChange={(e) => setSearchPhone(e.target.value)}
-                  placeholder="Ex: 0555123456"
-                  className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">
+                <Phone size={14} className="inline mr-2" />
+                Numéro de téléphone
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Ex: 0555 12 34 56"
+                required
+                className="w-full border border-gray-300 px-4 py-4 text-base text-center font-mono tracking-widest focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors"
+              />
+              <p className="text-xs text-gray-400 mt-2 text-center">
+                Le même numéro que vous avez donné lors de la commande
+              </p>
             </div>
             <button
               type="submit"
-              className="w-full md:w-auto self-center bg-gray-900 text-white px-10 py-4 hover:bg-gold-400 hover:text-gray-900 transition-colors font-bold text-sm uppercase tracking-widest flex items-center gap-2"
+              className="w-full bg-gray-900 text-white px-10 py-4 hover:bg-gold-400 hover:text-gray-900 transition-colors font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2"
             >
               <Search size={18} />
-              Rechercher
+              Rechercher mes commandes
             </button>
           </form>
         </motion.div>
@@ -116,114 +173,227 @@ export default function TrackOrder() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="mt-8"
+            className="mt-8 space-y-6"
           >
-            {foundOrder ? (
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                {/* Order Info */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-gray-100">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Commande</p>
-                    <p className="font-mono font-bold text-gray-900">#{foundOrder.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Client</p>
-                    <p className="font-bold text-gray-900">{foundOrder.customer.fullName}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Date</p>
-                    <p className="font-bold text-gray-900">
-                      {new Date(foundOrder.date).toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Total</p>
-                    <p className="font-bold text-gold-600 text-lg">
-                      {foundOrder.total.toLocaleString('fr-DZ')} DZD
-                    </p>
-                  </div>
-                </div>
+            {foundOrders.length > 0 ? (
+              <>
+                <p className="text-sm text-gray-500 text-center">
+                  {foundOrders.length} commande{foundOrders.length > 1 ? 's' : ''} trouvée{foundOrders.length > 1 ? 's' : ''}
+                </p>
 
-                {/* Timeline */}
-                <div className="relative">
-                  {steps.map((step, index) => {
-                    const status = getStepStatus(foundOrder.status, step.key);
-                    const StepIcon = step.icon;
-
-                    return (
-                      <div key={step.key} className="flex gap-4 mb-8 last:mb-0">
-                        {/* Line + Circle */}
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                              status === 'completed'
-                                ? 'bg-green-500 text-white'
-                                : status === 'current'
-                                ? 'bg-gold-400 text-gray-900 ring-4 ring-gold-100'
-                                : 'bg-gray-200 text-gray-400'
-                            }`}
-                          >
-                            <StepIcon size={18} />
+                {foundOrders.map((order, orderIndex) => (
+                  <motion.div
+                    key={order.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 * orderIndex }}
+                    className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+                  >
+                    {/* Order Header */}
+                    <div className="p-6 bg-gray-50 border-b border-gray-100">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200">
+                            <ShoppingBag size={20} className="text-gray-600" />
                           </div>
-                          {index < steps.length - 1 && (
-                            <div
-                              className={`w-0.5 h-16 mt-1 ${
-                                status === 'completed' ? 'bg-green-500' : 'bg-gray-200'
-                              }`}
-                            />
-                          )}
+                          <div>
+                            <p className="text-xs text-gray-500 uppercase tracking-widest">
+                              Commande
+                            </p>
+                            <p className="font-mono font-bold text-gray-900 text-lg">
+                              #{order.id.slice(-6)}
+                            </p>
+                          </div>
                         </div>
+                        {getStatusBadge(order.status)}
+                      </div>
+                    </div>
 
-                        {/* Content */}
-                        <div className="pt-1.5">
-                          <h3
-                            className={`font-bold text-sm uppercase tracking-widest ${
-                              status === 'upcoming' ? 'text-gray-400' : 'text-gray-900'
-                            }`}
-                          >
-                            {step.label}
-                          </h3>
-                          <p
-                            className={`text-sm mt-1 ${
-                              status === 'upcoming' ? 'text-gray-300' : 'text-gray-500'
-                            }`}
-                          >
-                            {step.description}
-                          </p>
-                          {status === 'current' && (
-                            <span className="inline-block mt-2 text-xs font-bold uppercase tracking-widest bg-gold-100 text-gold-700 px-3 py-1 rounded-full">
-                              Statut actuel
-                            </span>
-                          )}
+                    {/* Order Details */}
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div className="flex items-start gap-3">
+                          <CalendarDays size={16} className="text-gray-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500 uppercase tracking-widest mb-0.5">Date</p>
+                            <p className="text-sm font-bold text-gray-900">
+                              {new Date(order.date).toLocaleDateString('fr-FR', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <MapPin size={16} className="text-gray-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500 uppercase tracking-widest mb-0.5">Livraison</p>
+                            <p className="text-sm font-bold text-gray-900">
+                              {order.customer.wilaya}
+                            </p>
+                            <p className="text-xs text-gray-500">{order.customer.commune}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <CircleDot size={16} className="text-gold-500 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500 uppercase tracking-widest mb-0.5">Total</p>
+                            <p className="text-lg font-bold text-gold-600">
+                              {order.total.toLocaleString('fr-DZ')} DZD
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
 
-                {/* Delivery Address */}
-                <div className="mt-8 pt-6 border-t border-gray-100">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    Adresse de livraison
-                  </p>
-                  <p className="text-gray-900 font-medium">
-                    {foundOrder.customer.wilaya}, {foundOrder.customer.commune}
-                  </p>
-                </div>
-              </div>
+                      {/* Articles commandés */}
+                      {order.items && order.items.length > 0 && (
+                        <div className="mb-8 p-4 bg-gray-50 rounded-xl">
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                            Articles commandés
+                          </p>
+                          <div className="space-y-2">
+                            {order.items.map((item: any, i: number) => (
+                              <div key={i} className="flex justify-between items-center text-sm">
+                                <span className="text-gray-700">
+                                  {item.name} <span className="text-gray-400">× {item.quantity}</span>
+                                </span>
+                                <span className="font-bold text-gray-900">
+                                  {(item.price * item.quantity).toLocaleString('fr-DZ')} DZD
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Timeline */}
+                      <div className="relative">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6">
+                          Suivi de livraison
+                        </p>
+                        {steps.map((step, index) => {
+                          const status = getStepStatus(order.status, step.key);
+                          const StepIcon = step.icon;
+
+                          return (
+                            <div key={step.key} className="flex gap-4 mb-6 last:mb-0">
+                              {/* Line + Circle */}
+                              <div className="flex flex-col items-center">
+                                <div
+                                  className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                                    status === 'completed'
+                                      ? 'bg-green-500 text-white shadow-md shadow-green-200'
+                                      : status === 'current'
+                                      ? 'bg-gold-400 text-gray-900 ring-4 ring-gold-100 shadow-md shadow-gold-200'
+                                      : 'bg-gray-100 text-gray-300'
+                                  }`}
+                                >
+                                  <StepIcon size={18} />
+                                </div>
+                                {index < steps.length - 1 && (
+                                  <div
+                                    className={`w-0.5 h-full min-h-[40px] mt-1 transition-colors ${
+                                      status === 'completed'
+                                        ? 'bg-green-500'
+                                        : 'bg-gray-200'
+                                    }`}
+                                  />
+                                )}
+                              </div>
+
+                              {/* Content */}
+                              <div className="pt-1 pb-2">
+                                <h3
+                                  className={`font-bold text-sm uppercase tracking-widest ${
+                                    status === 'upcoming'
+                                      ? 'text-gray-300'
+                                      : 'text-gray-900'
+                                  }`}
+                                >
+                                  {step.label}
+                                </h3>
+                                <p
+                                  className={`text-sm mt-1 ${
+                                    status === 'upcoming'
+                                      ? 'text-gray-300'
+                                      : 'text-gray-500'
+                                  }`}
+                                >
+                                  {step.description}
+                                </p>
+                                {status !== 'upcoming' && (
+                                  <p
+                                    className={`text-xs mt-1 font-medium ${
+                                      status === 'current'
+                                        ? 'text-gold-600'
+                                        : 'text-green-600'
+                                    }`}
+                                  >
+                                    {step.detail}
+                                  </p>
+                                )}
+                                {status === 'current' && (
+                                  <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold uppercase tracking-widest bg-gold-100 text-gold-700 px-3 py-1 rounded-full">
+                                    <span className="w-1.5 h-1.5 bg-gold-500 rounded-full animate-pulse"></span>
+                                    Statut actuel
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Message selon le statut */}
+                      <div className={`mt-6 p-4 rounded-xl text-sm ${
+                        order.status === 'En attente'
+                          ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
+                          : order.status === 'Expédiée'
+                          ? 'bg-blue-50 border border-blue-200 text-blue-800'
+                          : 'bg-green-50 border border-green-200 text-green-800'
+                      }`}>
+                        {order.status === 'En attente' && (
+                          <>
+                            <p className="font-bold mb-1">⏳ Votre commande est en cours de préparation</p>
+                            <p>Notre équipe prépare votre colis avec soin. Vous serez notifié dès que votre commande sera expédiée. Délai moyen de préparation : 24 heures.</p>
+                          </>
+                        )}
+                        {order.status === 'Expédiée' && (
+                          <>
+                            <p className="font-bold mb-1">🚚 Votre colis est en route !</p>
+                            <p>Le livreur vous contactera au <strong>{order.customer.phone}</strong> avant la livraison. Veuillez garder votre téléphone accessible. Livraison estimée sous 2 à 5 jours ouvrables.</p>
+                          </>
+                        )}
+                        {order.status === 'Livrée' && (
+                          <>
+                            <p className="font-bold mb-1">✅ Commande livrée avec succès !</p>
+                            <p>Merci pour votre achat chez White Aura ! Si vous rencontrez un problème avec votre commande, contactez-nous dans les 48 heures.</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </>
             ) : (
               <div className="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center">
                 <Package className="mx-auto mb-4 text-gray-300" size={48} />
                 <h3 className="text-lg font-bold text-gray-900 mb-2">
-                  Commande introuvable
+                  Aucune commande trouvée
                 </h3>
-                <p className="text-sm text-gray-500">
-                  Vérifiez votre numéro de commande ou votre numéro de téléphone.
+                <p className="text-sm text-gray-500 max-w-sm mx-auto">
+                  Aucune commande n'est associée à ce numéro de téléphone. Vérifiez le numéro utilisé lors de votre commande.
                 </p>
+                <button
+                  onClick={() => {
+                    setSearched(false);
+                    setPhone('');
+                  }}
+                  className="mt-6 text-sm font-bold text-gold-600 hover:text-gold-700 uppercase tracking-widest"
+                >
+                  Réessayer
+                </button>
               </div>
             )}
           </motion.div>
