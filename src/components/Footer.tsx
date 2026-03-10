@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useTranslation } from '../utils/translations';
+import { Link } from 'react-router-dom';
 
 export default function Footer() {
   const { language } = useAppContext();
@@ -19,7 +20,6 @@ export default function Footer() {
               {t('brandDesc')}
             </p>
             <div className="flex space-x-4">
-              {/* Social Icons */}
               <a href="#" className="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center text-gray-400 hover:text-gold-400 hover:border-gold-400 transition-colors">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
               </a>
@@ -45,7 +45,11 @@ export default function Footer() {
             <ul className="space-y-4">
               <li><a href="/#faq" className="text-gray-400 hover:text-gold-400 transition-colors text-sm">{t('faq')}</a></li>
               <li><a href="/#shop" className="text-gray-400 hover:text-gold-400 transition-colors text-sm">{t('shippingReturns')}</a></li>
-              <li><a href="/#shop" className="text-gray-400 hover:text-gold-400 transition-colors text-sm">{t('trackOrder')}</a></li>
+              <li>
+                <Link to="/track" className="text-gray-400 hover:text-gold-400 transition-colors text-sm">
+                  {t('trackOrder')}
+                </Link>
+              </li>
               <li><a href="/#shop" className="text-gray-400 hover:text-gold-400 transition-colors text-sm">{t('contactUs')}</a></li>
             </ul>
           </div>
