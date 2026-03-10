@@ -449,7 +449,34 @@ export default function Admin() {
                     />
                   </div>
                 </div>
-
+                {/* ── Section Promo ─────────────────────────────── */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-red-50 border border-red-100 rounded-lg">
+                  <div>
+                    <label className="block text-xs font-bold text-red-600 uppercase tracking-widest mb-2">
+                      💰 Ancien prix avant promo (optionnel)
+                    </label>
+                    <input
+                      type="number"
+                      value={originalPrice}
+                      onChange={(e) => setOriginalPrice(e.target.value)}
+                      min="0"
+                      className="w-full border border-red-200 px-4 py-3 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors bg-white"
+                      placeholder="Ex: 6500 (vide = pas de promo)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-red-600 uppercase tracking-widest mb-2">
+                      🏷️ Badge promo (optionnel)
+                    </label>
+                    <input
+                      type="text"
+                      value={promoLabel}
+                      onChange={(e) => setPromoLabel(e.target.value)}
+                      className="w-full border border-red-200 px-4 py-3 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors bg-white"
+                      placeholder="Ex: -30%, Soldes, Promo Été"
+                    />
+                  </div>
+                </div>
                 {/* Image Upload */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">
