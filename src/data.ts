@@ -20,20 +20,24 @@ export const products: Product[] = [
     id: '2',
     name: 'Crème de Nuit Régénérante',
     description: 'Crème riche et soyeuse qui répare la peau pendant votre sommeil.',
-    price: 6500,
+    price: 4500,
+    originalPrice: 6500,
+    promoLabel: '-30%',
     imageUrl: 'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     images: [
       'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
     ],
     category: 'Soin du visage',
-    stock: 0, // Out of stock for testing
+    stock: 0,
   },
   {
     id: '3',
     name: 'Huile Précieuse Corps',
     description: 'Huile sèche nourrissante au parfum envoûtant et fini satiné.',
-    price: 3500,
+    price: 2800,
+    originalPrice: 3500,
+    promoLabel: '-20%',
     imageUrl: 'https://images.unsplash.com/photo-1615397323712-4267438e8869?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     images: [
       'https://images.unsplash.com/photo-1615397323712-4267438e8869?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
