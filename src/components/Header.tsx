@@ -13,8 +13,6 @@ export default function Header() {
   const location = useLocation();
 
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  // Vérifier si on est sur la page d'accueil
   const isHomePage = location.pathname === '/';
 
   useEffect(() => {
@@ -25,9 +23,6 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // ── Couleurs selon la page et le scroll ────────────────
-  // Sur la home : blanc en haut (hero sombre) → noir quand scrollé
-  // Sur les autres pages : TOUJOURS noir
   const textColor = !isHomePage || isScrolled ? 'text-gray-900' : 'text-white';
   const hoverColor = 'hover:text-gold-400';
   const headerBg = !isHomePage || isScrolled
@@ -43,20 +38,13 @@ export default function Header() {
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${headerBg}`}
     >
       <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between">
-        {/* Mobile Menu Button */}
-        <div className="flex-1 md:hidden flex items-center gap-4">
+        {/* Mobile Menu Button — SANS la langue */}
+        <div className="flex-1 md:hidden flex items-center">
           <button
             className={`${textColor} ${hoverColor} transition-colors`}
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <Menu size={24} />
-          </button>
-          <button
-            onClick={toggleLanguage}
-            className={`${textColor} ${hoverColor} transition-colors flex items-center gap-1 text-xs font-bold uppercase tracking-widest`}
-          >
-            <Globe size={16} />
-            <span>{language === 'fr' ? 'AR' : 'FR'}</span>
           </button>
         </div>
 
@@ -76,6 +64,7 @@ export default function Header() {
 
         {/* Icons */}
         <div className="flex-1 md:flex-none flex items-center justify-end space-x-5 md:space-x-6">
+          {/* Langue — Desktop uniquement */}
           <button
             onClick={toggleLanguage}
             className={`${textColor} ${hoverColor} transition-colors hidden md:flex items-center gap-1 text-xs font-bold uppercase tracking-widest`}
@@ -132,26 +121,40 @@ export default function Header() {
               <a href="/#shop" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium uppercase tracking-wide text-gray-900">{t('shop')}</a>
               <a href="/#about" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium uppercase tracking-wide text-gray-900">{t('ourHistory')}</a>
               <a href="/#collections" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium uppercase tracking-wide text-gray-900">{t('collections')}</a>
-              <div className="pt-6 border-t border-gray-100 flex space-x-6">
+
+              {/* Langue — Dans le menu mobile */}
+              <div className="pt-6 border-t border-gray-100 space-y-6">
                 <button
-                  className="flex items-center space-x-2 text-gray-600"
+                  onClick={() => {
+                    toggleLanguage();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="flex items-center space-x-3 text-gray-600 hover:text-gold-500 transition-colors"
+                >
+                  <Globe size={20} />
+                  <span className="text-lg font-medium uppercase tracking-wide">
+                    {language === 'fr' ? 'العربية' : 'Français'}
+                  </span>
+                </button>
+                <button
+                  className="flex items-center space-x-3 text-gray-600 hover:text-gold-500 transition-colors"
                   onClick={() => {
                     setIsMobileMenuOpen(false);
                     setIsAuthOpen(true);
                   }}
                 >
                   <User size={20} />
-                  <span>{t('account')}</span>
+                  <span className="text-lg font-medium uppercase tracking-wide">{t('account')}</span>
                 </button>
                 <button
-                  className="flex items-center space-x-2 text-gray-600"
+                  className="flex items-center space-x-3 text-gray-600 hover:text-gold-500 transition-colors"
                   onClick={() => {
                     setIsMobileMenuOpen(false);
                     window.dispatchEvent(new CustomEvent('show-toast', { detail: t('search') }));
                   }}
                 >
                   <Search size={20} />
-                  <span>{t('search')}</span>
+                  <span className="text-lg font-medium uppercase tracking-wide">{t('search')}</span>
                 </button>
               </div>
             </nav>
