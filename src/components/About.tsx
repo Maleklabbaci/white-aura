@@ -20,7 +20,7 @@ export default function About() {
           >
             <div className="aspect-[4/5] bg-gray-100 rounded-2xl overflow-hidden">
               <img 
-                src="https://i.ibb.co/qLd4VwQ3/GLOWLOW.png" 
+                src="https://i.ibb.co/KxYKVpM6/GLOWLOW.png" 
                 alt={t('ourHistory')} 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
