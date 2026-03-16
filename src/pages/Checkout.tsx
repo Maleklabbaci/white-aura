@@ -8,14 +8,12 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useTranslation } from '../utils/translations';
 import { addPoints } from '../lib/fidali';
-import LoyaltyWidget from '../components/LoyaltyWidget';  // ✅ Import Widget
 
 export default function Checkout() {
   const { cart, clearCart, addOrder, language } = useAppContext();
   const navigate = useNavigate();
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [loyaltyResult, setLoyaltyResult] = useState<any>(null);  // ✅ Résultat fidélité
-  const [orderPhone, setOrderPhone] = useState('');  // ✅ Garder le téléphone
+  const [loyaltyResult, setLoyaltyResult] = useState<any>(null);
   const t = useTranslation(language);
 
   const [formData, setFormData] = useState({
@@ -32,7 +30,6 @@ export default function Checkout() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (cart.length === 0) return;
 
     const newOrder = {
@@ -46,29 +43,31 @@ export default function Checkout() {
 
     addOrder(newOrder);
     clearCart();
-    setOrderPhone(formData.phone);  // ✅ Sauvegarder le téléphone
 
-  // ✅ Ajouter 1 point fidélité (auto-inscription si nouveau client)
-try {
-  const result = await addPoints(formData.phone, 1, formData.fullName)
-  setLoyaltyResult(result)
+    // ✅ Ajouter 1 point fidélité
+    try {
+      const result = await addPoints(formData.phone, 1, formData.fullName)
+      setLoyaltyResult(result)
 
-  if (result.success) {
-    if (result.new_client) {
-      console.log('✅ Nouveau client inscrit automatiquement !')
+      if (result.success) {
+        if (result.new_client) {
+          console.log('✅ Nouveau client inscrit automatiquement !')
+        }
+        if (result.reward_reached) {
+          window.dispatchEvent(new CustomEvent('show-toast', {
+            detail: '🎉 Félicitations ! Vous avez gagné : ' + result.reward
+          }))
+        }
+      }
+    } catch (e) {
+      console.log('Points fidélité: erreur (non bloquant)')
     }
-    if (result.reward_reached) {
-      window.dispatchEvent(new CustomEvent('show-toast', {
-        detail: '🎉 Félicitations ! Vous avez gagné : ' + result.reward
-      }))
-    }
-  }
-} catch (e) {
-  console.log('Points fidélité: erreur (non bloquant)')
-}
 
+    setIsSubmitted(true);
+    window.scrollTo(0, 0);
+  };  // ✅ Fermeture de handleSubmit
 
-  // ── PAGE DE CONFIRMATION ─��
+  // ── PAGE DE CONFIRMATION ──
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -87,7 +86,6 @@ try {
               {t('orderConfirmedDesc')}
             </p>
 
-            {/* ✅ Résultat fidélité après la commande */}
             {loyaltyResult?.success && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -132,7 +130,6 @@ try {
               </motion.div>
             )}
 
-            {/* ✅ Lien vers la page fidélité */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <button 
                 onClick={() => navigate('/')}
@@ -148,6 +145,7 @@ try {
                   fontWeight: 700, fontSize: 13, cursor: 'pointer',
                   textTransform: 'uppercase', letterSpacing: 2,
                   transition: 'all 0.2s',
+                  fontFamily: 'inherit',
                 }}
                 onMouseOver={e => {
                   (e.target as HTMLButtonElement).style.background = '#9333ea';
@@ -200,7 +198,6 @@ try {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             
-            {/* Form */}
             <div className="lg:col-span-7">
               <div className="bg-white p-8 rounded-2xl shadow-sm">
                 <h2 className="text-xl font-display font-bold text-gray-900 uppercase tracking-widest mb-8 border-b border-gray-100 pb-4">
@@ -212,9 +209,7 @@ try {
                     <div>
                       <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">{t('fullName')}</label>
                       <input 
-                        type="text" 
-                        required 
-                        value={formData.fullName}
+                        type="text" required value={formData.fullName}
                         onChange={e => setFormData({...formData, fullName: e.target.value})}
                         className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors" 
                         placeholder={t('fullNamePlaceholder')}
@@ -223,9 +218,7 @@ try {
                     <div>
                       <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">{t('phone')}</label>
                       <input 
-                        type="tel" 
-                        required 
-                        value={formData.phone}
+                        type="tel" required value={formData.phone}
                         onChange={e => setFormData({...formData, phone: e.target.value})}
                         className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors" 
                         placeholder="05xx xx xx xx" 
@@ -236,9 +229,7 @@ try {
                   <div>
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">{t('address')}</label>
                     <input 
-                      type="text" 
-                      required 
-                      value={formData.address}
+                      type="text" required value={formData.address}
                       onChange={e => setFormData({...formData, address: e.target.value})}
                       className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors" 
                       placeholder={t('addressPlaceholder')}
@@ -249,8 +240,7 @@ try {
                     <div>
                       <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">{t('wilaya')}</label>
                       <select 
-                        required
-                        value={formData.wilaya}
+                        required value={formData.wilaya}
                         onChange={e => setFormData({...formData, wilaya: e.target.value})}
                         className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors bg-white"
                       >
@@ -263,9 +253,7 @@ try {
                     <div>
                       <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">{t('commune')}</label>
                       <input 
-                        type="text" 
-                        required 
-                        value={formData.commune}
+                        type="text" required value={formData.commune}
                         onChange={e => setFormData({...formData, commune: e.target.value})}
                         className="w-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors" 
                         placeholder={t('communePlaceholder')}
@@ -276,7 +264,6 @@ try {
               </div>
             </div>
 
-            {/* Order Summary */}
             <div className="lg:col-span-5">
               <div className="bg-white p-8 rounded-2xl shadow-sm sticky top-32">
                 <h2 className="text-xl font-display font-bold text-gray-900 uppercase tracking-widest mb-8 border-b border-gray-100 pb-4">
@@ -314,8 +301,7 @@ try {
                 </div>
 
                 <button 
-                  type="submit"
-                  form="checkout-form"
+                  type="submit" form="checkout-form"
                   className="w-full bg-gray-900 text-white py-4 flex items-center justify-center gap-3 hover:bg-gold-400 hover:text-gray-900 transition-colors font-bold text-sm uppercase tracking-widest"
                 >
                   {t('confirmOrder')}
@@ -324,26 +310,20 @@ try {
                   {t('cashOnDelivery')}
                 </p>
 
-                {/* ✅ Mini info fidélité */}
                 <div style={{
                   marginTop: 16, padding: '12px 16px',
                   background: '#faf5ff', borderRadius: 12,
-                  border: '1px solid #e9d5ff',
-                  textAlign: 'center',
+                  border: '1px solid #e9d5ff', textAlign: 'center',
                 }}>
                   <p style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600, margin: 0 }}>
                     🎯 Cette commande vous rapporte 1 point fidélité !
                   </p>
-                  <a href="/loyalty" style={{
-                    fontSize: 11, color: '#9333ea', textDecoration: 'none',
-                    fontWeight: 500,
-                  }}>
+                  <a href="/loyalty" style={{ fontSize: 11, color: '#9333ea', textDecoration: 'none', fontWeight: 500 }}>
                     Voir ma carte →
                   </a>
                 </div>
               </div>
             </div>
-
           </div>
         )}
       </main>
