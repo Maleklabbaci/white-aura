@@ -7,7 +7,7 @@ import { motion } from 'motion/react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useTranslation } from '../utils/translations';
-import { addPoints } from '../lib/fidali';          // ✅ Import Fidali
+import { addPoints } from '../lib/fidali';
 import LoyaltyWidget from '../components/LoyaltyWidget';  // ✅ Import Widget
 
 export default function Checkout() {
@@ -48,22 +48,25 @@ export default function Checkout() {
     clearCart();
     setOrderPhone(formData.phone);  // ✅ Sauvegarder le téléphone
 
-    // ✅ Ajouter 1 point fidélité Fidali
-    try {
-      const result = await addPoints(formData.phone, 1);
-      setLoyaltyResult(result);
-      if (result.success && result.reward_reached) {
-        window.dispatchEvent(new CustomEvent('show-toast', {
-          detail: '🎉 Félicitations ! Vous avez gagné votre récompense fidélité !'
-        }));
-      }
-    } catch (e) {
-      console.log('Points fidélité non ajoutés (client pas encore inscrit)');
-    }
+  // ✅ Ajouter 1 point fidélité (auto-inscription si nouveau client)
+try {
+  const result = await addPoints(formData.phone, 1, formData.fullName)
+  setLoyaltyResult(result)
 
-    setIsSubmitted(true);
-    window.scrollTo(0, 0);
-  };
+  if (result.success) {
+    if (result.new_client) {
+      console.log('✅ Nouveau client inscrit automatiquement !')
+    }
+    if (result.reward_reached) {
+      window.dispatchEvent(new CustomEvent('show-toast', {
+        detail: '🎉 Félicitations ! Vous avez gagné : ' + result.reward
+      }))
+    }
+  }
+} catch (e) {
+  console.log('Points fidélité: erreur (non bloquant)')
+}
+
 
   // ── PAGE DE CONFIRMATION ─��
   if (isSubmitted) {
